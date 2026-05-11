@@ -12,13 +12,21 @@ function optionalInt(key: string, fallback: number): number {
   return parsed;
 }
 
+function required(key: string): string {
+  const val = process.env[key];
+  if (!val) throw new Error(`Required env var ${key} is not set`);
+  return val;
+}
+
+const isProduction = process.env.NODE_ENV === 'production';
+
 // Single source of truth for all env-var access.
 // Add new vars here; never read process.env directly elsewhere.
 export const config = {
   env: optional('NODE_ENV', 'development'),
   port: optionalInt('PORT', 3000),
-  isProduction: process.env.NODE_ENV === 'production',
-  isDevelopment: process.env.NODE_ENV !== 'production',
+  isProduction,
+  isDevelopment: !isProduction,
 
   adminDb: {
     host: optional('ADMIN_DB_HOST', 'localhost'),
@@ -29,7 +37,7 @@ export const config = {
   },
 
   jwt: {
-    secret: optional('JWT_SECRET', 'change_me_in_production'),
+    secret: isProduction ? required('JWT_SECRET') : optional('JWT_SECRET', 'dev_secret_not_for_production'),
     expiresIn: optional('JWT_EXPIRES_IN', '7d'),
   },
 } as const;

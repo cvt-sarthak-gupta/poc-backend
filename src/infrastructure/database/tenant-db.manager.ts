@@ -9,6 +9,8 @@ export class TenantDbManager {
   private static instance: TenantDbManager;
   private readonly connections = new Map<number, DataSource>();
   private readonly connectionsByDomain = new Map<string, DataSource>();
+  private readonly pendingById = new Map<number, Promise<DataSource>>();
+  private readonly pendingByDomain = new Map<string, Promise<DataSource>>();
 
   private constructor() {}
 
@@ -24,10 +26,23 @@ export class TenantDbManager {
       return this.connections.get(tenantId)!;
     }
 
-    const tenant = await AdminDataSource.getRepository(Tenant).findOneBy({ id: tenantId });
-    if (!tenant) throw new Error(`Tenant ${tenantId} not found`);
+    if (this.pendingById.has(tenantId)) {
+      return this.pendingById.get(tenantId)!;
+    }
 
-    return this.createConnection(tenantId, tenant.subDomain, tenant.dbUrl);
+    const promise = (async () => {
+      const tenant = await AdminDataSource.getRepository(Tenant).findOneBy({ id: tenantId });
+      if (!tenant) throw new Error(`Tenant ${tenantId} not found`);
+      return this.createConnection(tenantId, tenant.subDomain, tenant.dbUrl);
+    })();
+
+    this.pendingById.set(tenantId, promise);
+    try {
+      const ds = await promise;
+      return ds;
+    } finally {
+      this.pendingById.delete(tenantId);
+    }
   }
 
   async getConnectionByDomain(domain: string): Promise<DataSource> {
@@ -35,10 +50,23 @@ export class TenantDbManager {
       return this.connectionsByDomain.get(domain)!;
     }
 
-    const tenant = await AdminDataSource.getRepository(Tenant).findOneBy({ subDomain: domain });
-    if (!tenant) throw new Error(`Tenant with domain "${domain}" not found`);
+    if (this.pendingByDomain.has(domain)) {
+      return this.pendingByDomain.get(domain)!;
+    }
 
-    return this.createConnection(tenant.id, domain, tenant.dbUrl);
+    const promise = (async () => {
+      const tenant = await AdminDataSource.getRepository(Tenant).findOneBy({ subDomain: domain });
+      if (!tenant) throw new Error(`Tenant with domain "${domain}" not found`);
+      return this.createConnection(tenant.id, domain, tenant.dbUrl);
+    })();
+
+    this.pendingByDomain.set(domain, promise);
+    try {
+      const ds = await promise;
+      return ds;
+    } finally {
+      this.pendingByDomain.delete(domain);
+    }
   }
 
   // Creates the database if it doesn't exist, then runs all pending migrations.

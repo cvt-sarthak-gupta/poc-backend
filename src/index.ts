@@ -1,15 +1,20 @@
 import 'reflect-metadata';
 import 'dotenv/config';
 import app from './app';
+import { initializeApiRoutes } from './routes';
 import { AdminDataSource } from './infrastructure/database/admin.datasource';
 import { TenantDbManager } from './infrastructure/database/tenant-db.manager';
 import logger from './infrastructure/logger';
+import { config } from './config';
 
-const PORT = Number(process.env.PORT ?? 3000);
+const PORT = config.port;
 
 async function bootstrap(): Promise<void> {
   await AdminDataSource.initialize();
   logger.info('Admin DB connected');
+
+  await initializeApiRoutes();
+  logger.info('Routes initialized');
 
   const server = app.listen(PORT, () => {
     logger.info({ port: PORT }, 'Server started');

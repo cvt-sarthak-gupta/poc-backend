@@ -1,14 +1,13 @@
 import 'reflect-metadata';
 import express, { Request, Response, NextFunction } from 'express';
-import { OrderRoutes } from './tenants/orders';
-import { CustomError } from './errors';
-import { ApiRouteNotFoundError } from './errors';
+import apiRouter from './routes';
+import { CustomError, ApiRouteNotFoundError } from './errors';
 import logger from './infrastructure/logger';
 
 const app = express();
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 app.use((req, _res, next) => {
   logger.debug({ method: req.method, url: req.url }, 'Incoming request');
@@ -19,10 +18,7 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-const v1 = express.Router();
-v1.use(new OrderRoutes().router);
-
-app.use('/api/v1', v1);
+app.use('/api/v1', apiRouter);
 
 app.use((_req, res) => {
   const err = new ApiRouteNotFoundError();

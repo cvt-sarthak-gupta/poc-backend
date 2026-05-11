@@ -3,7 +3,8 @@ import 'dotenv/config';
 import { DataSource } from 'typeorm';
 import { AdminDataSource } from '../infrastructure/database/admin.datasource';
 import { Tenant } from '../admin/entities/tenant.entity';
-import { Order, OrderStatus, OrderCurrency } from '../tenants/entities/order.entity';
+import { Order } from '../tenants/entities/order.entity';
+import { OrderStatus, OrderCurrency } from '../tenants/orders/order.types';
 import logger from '../infrastructure/logger';
 
 const STATUSES = Object.values(OrderStatus);

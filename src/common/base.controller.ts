@@ -4,6 +4,7 @@ import { CustomError, NotFoundError, UnprocessableEntityError } from '../errors'
 import { TenantDbManager } from '../tenants/datasource';
 import { getTenantRepository } from '../utils/tenant/tenant.utils';
 import responseMessages from './base.messages';
+import logger from '../infrastructure/logger';
 
 export abstract class BaseController {
   protected readonly entity: EntityTarget<any>;
@@ -243,9 +244,7 @@ export abstract class BaseController {
     const id = req.params.id;
     try {
       await this.beforeAll(req);
-      const tenantId = parseInt(req.headers['tenantId'] as string);
-      const dataSource = await this.tenantDbManager.getConnection(tenantId);
-      const repository = dataSource.getRepository(this.entity);
+      const repository = await this.getRepository(req);
       const record = await repository.findOne({
         where: { id } as FindOptionsWhere<any>,
       });
@@ -269,8 +268,8 @@ export abstract class BaseController {
     if (error instanceof CustomError) {
       res.status(error.statusCode).json(error.json());
     } else {
-      console.error(error);
-      const internalError = new UnprocessableEntityError(error.message);
+      logger.error({ err: error }, 'Unhandled controller error');
+      const internalError = new UnprocessableEntityError(error.message ?? 'Unexpected error');
       res.status(internalError.statusCode).json(internalError.json());
     }
   }

@@ -1,18 +1,8 @@
 import { Entity, Column, Index } from 'typeorm';
 import { BaseEntity } from '../../common/base.entity';
+import { OrderStatus, OrderCurrency } from '../orders/order.types';
 
-export enum OrderStatus {
-  PENDING = 'pending',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled',
-}
-
-export enum OrderCurrency {
-  USD = 'USD',
-  EUR = 'EUR',
-  GBP = 'GBP',
-}
+export { OrderStatus, OrderCurrency };
 
 @Entity('orders')
 @Index(['status', 'createdAt'])
