@@ -19,9 +19,10 @@ function randomFloat(min: number, max: number): number {
   return parseFloat((Math.random() * (max - min) + min).toFixed(2));
 }
 
-// Returns a random timestamp between `maxDaysAgo` days ago and now
-function randomPastDate(maxDaysAgo = 730): Date {
-  const msAgo = Math.random() * maxDaysAgo * 24 * 60 * 60 * 1000;
+// Returns a random timestamp between minDaysAgo and maxDaysAgo days in the past
+function randomPastDate(maxDaysAgo = 730, minDaysAgo = 1): Date {
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const msAgo = (minDaysAgo + Math.random() * (maxDaysAgo - minDaysAgo)) * MS_PER_DAY;
   return new Date(Date.now() - msAgo);
 }
 
@@ -36,6 +37,9 @@ async function seedTenant(tenant: Tenant): Promise<void> {
   });
 
   await ds.initialize();
+
+  await ds.query('TRUNCATE TABLE orders RESTART IDENTITY CASCADE');
+  logger.info({ tenantId: tenant.id }, 'Truncated orders table');
 
   const repo = ds.getRepository(Order);
   const BATCH = 50;
@@ -61,7 +65,7 @@ async function seedTenant(tenant: Tenant): Promise<void> {
     // repo.save() forces updatedAt = NOW(); patch both timestamps via a single unnest query
     await ds.query(
       `UPDATE orders
-       SET created_at = v.ts, updated_at = v.ts
+       SET "createdAt" = v.ts, "updatedAt" = v.ts
        FROM (SELECT unnest($1::int[]) AS id, unnest($2::timestamptz[]) AS ts) v
        WHERE orders.id = v.id`,
       [saved.map((o) => o.id), targetDates],

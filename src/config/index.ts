@@ -40,4 +40,8 @@ export const config = {
     secret: isProduction ? required('JWT_SECRET') : optional('JWT_SECRET', 'dev_secret_not_for_production'),
     expiresIn: optional('JWT_EXPIRES_IN', '7d'),
   },
+
+  cors: {
+    origin: optional('CORS_ORIGIN', '*'),
+  },
 } as const;
