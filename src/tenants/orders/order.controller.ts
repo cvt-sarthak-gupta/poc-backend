@@ -16,9 +16,7 @@ export class OrderController extends BaseController {
     return ['id', 'orderNumber', 'status', 'totalAmount', 'currency', 'createdAt', 'updatedAt'];
   }
 
-  protected getSearchableExpressions(): string[] {
-    return ['entity.orderNumber', 'CAST(entity.currency AS TEXT)', 'CAST(entity.totalAmount AS TEXT)'];
-  }
+
 
   public async indexAllTenants(req: Request, res: Response): Promise<void> {
     try {

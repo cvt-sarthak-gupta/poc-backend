@@ -61,7 +61,7 @@ export class OrderService {
     const repo = conn.getRepository(Order);
 
     if (search) {
-      const searchExpressions = ['order.orderNumber', 'CAST(order.currency AS TEXT)', 'CAST(order.totalAmount AS TEXT)'];
+      const searchExpressions = ['order.orderNumber', 'CAST(order.status AS TEXT)', 'CAST(order.currency AS TEXT)', 'CAST(order.totalAmount AS TEXT)'];
       const qb = repo
         .createQueryBuilder('order')
         .where(`(${searchExpressions.map((expr) => `${expr} ILIKE :search`).join(' OR ')})`, { search: `%${search}%` })
