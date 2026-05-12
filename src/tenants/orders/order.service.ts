@@ -9,6 +9,7 @@ export interface CrossTenantIndexParams {
   limit: number;
   order: 'ASC' | 'DESC';
   tenantIds?: number[];
+  search?: string;
 }
 
 export interface CrossTenantIndexResult {
@@ -21,7 +22,7 @@ export class OrderService {
   private readonly tenantDbManager = TenantDbManager.getInstance();
 
   async indexAllTenants(params: CrossTenantIndexParams): Promise<CrossTenantIndexResult> {
-    const { page, limit, order, tenantIds } = params;
+    const { page, limit, order, tenantIds, search } = params;
 
     const tenants = await this.fetchActiveTenants(tenantIds);
     if (tenants.length === 0) {
@@ -29,7 +30,7 @@ export class OrderService {
     }
 
     const settled = await Promise.allSettled(
-      tenants.map((tenant) => this.fetchBatchFromTenant(tenant, page * limit, order))
+      tenants.map((tenant) => this.fetchBatchFromTenant(tenant, page * limit, order, search))
     );
 
     const fulfilled = settled
@@ -55,12 +56,22 @@ export class OrderService {
     return qb.getMany();
   }
 
-  private async fetchBatchFromTenant(tenant: Tenant, take: number, order: 'ASC' | 'DESC'): Promise<TenantOrderBatch> {
+  private async fetchBatchFromTenant(tenant: Tenant, take: number, order: 'ASC' | 'DESC', search?: string): Promise<TenantOrderBatch> {
     const conn = await this.tenantDbManager.getConnection(tenant.id);
-    const [orders, count] = await conn.getRepository(Order).findAndCount({
-      take,
-      order: { createdAt: order },
-    });
+    const repo = conn.getRepository(Order);
+
+    if (search) {
+      const searchExpressions = ['order.orderNumber', 'CAST(order.currency AS TEXT)', 'CAST(order.totalAmount AS TEXT)'];
+      const qb = repo
+        .createQueryBuilder('order')
+        .where(`(${searchExpressions.map((expr) => `${expr} ILIKE :search`).join(' OR ')})`, { search: `%${search}%` })
+        .orderBy('order.createdAt', order)
+        .take(take);
+      const [orders, count] = await qb.getManyAndCount();
+      return { tenantId: tenant.id, tenantName: tenant.organizationName, tenantSubDomain: tenant.subDomain, orders: orders as unknown as Record<string, unknown>[], count };
+    }
+
+    const [orders, count] = await repo.findAndCount({ take, order: { createdAt: order } });
     return { tenantId: tenant.id, tenantName: tenant.organizationName, tenantSubDomain: tenant.subDomain, orders: orders as unknown as Record<string, unknown>[], count };
   }
 }

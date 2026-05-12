@@ -16,11 +16,15 @@ export class OrderController extends BaseController {
     return ['id', 'orderNumber', 'status', 'totalAmount', 'currency', 'createdAt', 'updatedAt'];
   }
 
+  protected getSearchableExpressions(): string[] {
+    return ['entity.orderNumber', 'CAST(entity.currency AS TEXT)', 'CAST(entity.totalAmount AS TEXT)'];
+  }
+
   public async indexAllTenants(req: Request, res: Response): Promise<void> {
     try {
-      const { page, limit, order, tenantIds } = req.validatedData as IndexAllTenantsInput;
+      const { page, limit, order, tenantIds, search } = req.validatedData as IndexAllTenantsInput;
 
-      const result = await this.orderService.indexAllTenants({ page, limit, order, tenantIds });
+      const result = await this.orderService.indexAllTenants({ page, limit, order, tenantIds, search });
 
       res.status(200).json({
         status: 'success',

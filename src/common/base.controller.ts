@@ -55,7 +55,8 @@ export abstract class BaseController {
       const order = this.applyDefaultOrder(this.getOrderBy(req), this.defaultOrderBy());
       const whereConditions = await this.getWhereConditions(req);
       const query = await this.formatFilterConditions(req.body?.filterConditions, req);
-      const hasSearch = query?.search && this.getSearchableFields().length > 0;
+      const searchableExpressions = this.getSearchableExpressions();
+      const hasSearch = query?.search && (searchableExpressions?.length ?? this.getSearchableFields().length) > 0;
       const selectableFields = this.getSelectableFields();
 
       let records: any[];
@@ -70,9 +71,9 @@ export abstract class BaseController {
         });
         this.addWhereConditions(queryBuilder, filters);
 
-        const searchableFields = this.getSearchableFields();
-        if (searchableFields.length > 0) {
-          queryBuilder.andWhere(`(${searchableFields.map((field) => `entity.${field} ILIKE :search`).join(' OR ')})`, { search: `%${query.search}%` });
+        const expressions = searchableExpressions ?? this.getSearchableFields().map((f) => `entity.${f}`);
+        if (expressions.length > 0) {
+          queryBuilder.andWhere(`(${expressions.map((expr) => `${expr} ILIKE :search`).join(' OR ')})`, { search: `%${query.search}%` });
         }
 
         if (selectableFields?.length) {
@@ -298,6 +299,15 @@ export abstract class BaseController {
    */
   protected getSearchableFields(): string[] {
     return [];
+  }
+
+  /**
+   * Override in child controllers to provide raw SQL expressions for search (each gets " ILIKE :search" appended).
+   * Use this instead of getSearchableFields() when columns need casting (e.g. enums, decimals).
+   * When non-null, takes precedence over getSearchableFields() for search.
+   */
+  protected getSearchableExpressions(): string[] | null {
+    return null;
   }
 
   /**

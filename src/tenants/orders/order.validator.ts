@@ -10,6 +10,7 @@ const indexAllTenantsSchema = z
       .transform((v) => v.toUpperCase() as 'ASC' | 'DESC')
       .default('desc'),
     tenantIds: z.array(z.number().int().positive()).optional(),
+    search: z.string().trim().optional(),
   })
   .strict();
 
