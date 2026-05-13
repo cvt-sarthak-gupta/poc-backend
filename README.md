@@ -71,9 +71,7 @@ src/
 │   ├── middlewares/
 │   │   └── auth.middleware.ts
 │   ├── migrations/
-│   ├── users/                     # User feature module
-│   ├── orders/                    # Order feature module (scaffold)
-│   └── aggregation/               # Cross-tenant aggregation service
+│   └── orders/                    # Order feature module + cross-tenant aggregation
 ├── types/
 │   └── express.d.ts               # req.tenantId augmentation
 └── utils/
@@ -154,6 +152,17 @@ Server starts on `http://localhost:3000`. Health check: `GET /health`.
 | `npm run migration:run:tenant` | Run tenant DB migrations |
 | `npm run migration:generate:admin` | Generate new admin migration |
 | `npm run migration:generate:tenant` | Generate new tenant migration |
+| `npm run seed` | Seed 150 random orders into every active tenant DB |
+
+## Seeding
+
+The seed script connects to the admin DB, fetches all active tenants, and inserts 150 randomly generated orders (varying status, amount, currency, and timestamps spread over the past 2 years) into each tenant's database.
+
+```bash
+npm run seed
+```
+
+Requires active tenants with a valid `dbUrl` in the admin DB. Safe to re-run — it truncates before inserting.
 
 ## API Routes
 
@@ -163,24 +172,36 @@ Server starts on `http://localhost:3000`. Health check: `GET /health`.
 GET /health
 ```
 
-### Users (tenant-scoped)
+### Tenants
 
 ```
-POST   /api/v1/users/all   # List with pagination/filtering
-GET    /api/v1/users/:id
-POST   /api/v1/users
-PUT    /api/v1/users/:id
-DELETE /api/v1/users/:id
+POST /api/v1/admin/tenants/all   # Paginated tenant list
 ```
 
-### Orders (tenant-scoped — Week 2)
+### Orders — cross-tenant aggregation
 
 ```
-POST   /api/v1/orders/all
-GET    /api/v1/orders/:id
-POST   /api/v1/orders
-PUT    /api/v1/orders/:id
-DELETE /api/v1/orders/:id
+POST /api/v1/orders/admin/all    # Fan-out across all (or selected) tenant DBs
+```
+
+Request body:
+
+```json
+{
+  "page": 1,
+  "limit": 20,
+  "order": { "field": "createdAt", "direction": "DESC" },
+  "tenantIds": [1, 2],
+  "status": "pending",
+  "currency": "USD",
+  "search": ""
+}
+```
+
+### Orders — single tenant
+
+```
+POST /api/v1/orders/all          # Requires tenant context (resolved from JWT)
 ```
 
 ## Environment Variables
