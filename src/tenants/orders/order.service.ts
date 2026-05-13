@@ -3,12 +3,15 @@ import { TenantDbManager } from '../../infrastructure/database/tenant-db.manager
 import { Tenant } from '../../admin/entities/tenant.entity';
 import { Order } from '../entities/order.entity';
 import { TenantOrderBatch, flattenWithTenantMeta, sortByCreatedAt, paginateSlice, sumCounts } from './order.helper';
+import { OrderCurrency, OrderStatus } from './order.types';
 
 export interface CrossTenantIndexParams {
   page: number;
   limit: number;
   order: 'ASC' | 'DESC';
   tenantIds?: number[];
+  status?: OrderStatus[];
+  currency?: OrderCurrency[];
   search?: string;
 }
 
@@ -22,7 +25,7 @@ export class OrderService {
   private readonly tenantDbManager = TenantDbManager.getInstance();
 
   async indexAllTenants(params: CrossTenantIndexParams): Promise<CrossTenantIndexResult> {
-    const { page, limit, order, tenantIds, search } = params;
+    const { page, limit, order, tenantIds, status, currency, search } = params;
 
     const tenants = await this.fetchActiveTenants(tenantIds);
     if (tenants.length === 0) {
@@ -30,7 +33,7 @@ export class OrderService {
     }
 
     const settled = await Promise.allSettled(
-      tenants.map((tenant) => this.fetchBatchFromTenant(tenant, page * limit, order, search))
+      tenants.map((tenant) => this.fetchBatchFromTenant(tenant, page * limit, order, status, currency, search))
     );
 
     const fulfilled = settled
@@ -56,22 +59,28 @@ export class OrderService {
     return qb.getMany();
   }
 
-  private async fetchBatchFromTenant(tenant: Tenant, take: number, order: 'ASC' | 'DESC', search?: string): Promise<TenantOrderBatch> {
+  private async fetchBatchFromTenant(tenant: Tenant, take: number, order: 'ASC' | 'DESC', status?: OrderStatus[], currency?: OrderCurrency[], search?: string): Promise<TenantOrderBatch> {
     const conn = await this.tenantDbManager.getConnection(tenant.id);
     const repo = conn.getRepository(Order);
 
+    const qb = repo.createQueryBuilder('order');
+
     if (search) {
       const searchExpressions = ['order.orderNumber', 'CAST(order.status AS TEXT)', 'CAST(order.currency AS TEXT)', 'CAST(order.totalAmount AS TEXT)'];
-      const qb = repo
-        .createQueryBuilder('order')
-        .where(`(${searchExpressions.map((expr) => `${expr} ILIKE :search`).join(' OR ')})`, { search: `%${search}%` })
-        .orderBy('order.createdAt', order)
-        .take(take);
-      const [orders, count] = await qb.getManyAndCount();
-      return { tenantId: tenant.id, tenantName: tenant.organizationName, tenantSubDomain: tenant.subDomain, orders: orders as unknown as Record<string, unknown>[], count };
+      qb.where(`(${searchExpressions.map((expr) => `${expr} ILIKE :search`).join(' OR ')})`, { search: `%${search}%` });
     }
 
-    const [orders, count] = await repo.findAndCount({ take, order: { createdAt: order } });
+    if (status?.length) {
+      qb.andWhere('order.status IN (:...status)', { status });
+    }
+
+    if (currency?.length) {
+      qb.andWhere('order.currency IN (:...currency)', { currency });
+    }
+
+    qb.orderBy('order.createdAt', order).take(take);
+
+    const [orders, count] = await qb.getManyAndCount();
     return { tenantId: tenant.id, tenantName: tenant.organizationName, tenantSubDomain: tenant.subDomain, orders: orders as unknown as Record<string, unknown>[], count };
   }
 }

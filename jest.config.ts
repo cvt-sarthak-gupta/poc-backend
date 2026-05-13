@@ -13,6 +13,8 @@ const config: Config = {
     '^@errors/(.*)$': '<rootDir>/src/errors/$1',
     '^@utils/(.*)$': '<rootDir>/src/utils/$1',
     '^@config/(.*)$': '<rootDir>/src/config/$1',
+    '^.*/infrastructure/logger$': '<rootDir>/src/__tests__/setup.ts',
+    '^.*/utils/logger$': '<rootDir>/src/__tests__/setup.ts',
   },
   coverageDirectory: 'coverage',
   collectCoverageFrom: [

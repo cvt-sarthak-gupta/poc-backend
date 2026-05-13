@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BaseValidator } from '../../common/base.validator';
+import { OrderCurrency, OrderStatus } from './order.types';
 
 const indexAllTenantsSchema = z
   .object({
@@ -10,6 +11,8 @@ const indexAllTenantsSchema = z
       .transform((v) => v.toUpperCase() as 'ASC' | 'DESC')
       .default('desc'),
     tenantIds: z.array(z.number().int().positive()).optional(),
+    status: z.array(z.nativeEnum(OrderStatus)).optional(),
+    currency: z.array(z.nativeEnum(OrderCurrency)).optional(),
     search: z.string().trim().optional(),
   })
   .strict();

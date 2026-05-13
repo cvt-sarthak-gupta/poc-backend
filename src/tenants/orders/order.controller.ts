@@ -20,9 +20,9 @@ export class OrderController extends BaseController {
 
   public async indexAllTenants(req: Request, res: Response): Promise<void> {
     try {
-      const { page, limit, order, tenantIds, search } = req.validatedData as IndexAllTenantsInput;
+      const { page, limit, order, tenantIds, status, currency, search } = req.validatedData as IndexAllTenantsInput;
 
-      const result = await this.orderService.indexAllTenants({ page, limit, order, tenantIds, search });
+      const result = await this.orderService.indexAllTenants({ page, limit, order, tenantIds, status, currency, search });
 
       res.status(200).json({
         status: 'success',
